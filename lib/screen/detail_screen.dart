@@ -5,9 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:resto_app/model/detail_restaurant.dart';
 import 'package:resto_app/model/restaurant.dart';
 import 'package:resto_app/provider/restaurant_detail_provider.dart';
+import 'package:resto_app/provider/restaurant_favorite_provider.dart';
 import 'package:resto_app/service/api_service.dart';
 import 'package:resto_app/utils/Colors.dart';
 import 'package:resto_app/utils/constant.dart';
+import 'package:resto_app/utils/enum.dart';
 
 class DetailScreen extends StatelessWidget {
   final String restaurantId;
@@ -178,18 +180,47 @@ class DetailScreen extends StatelessWidget {
                         Positioned(
                           top: 225,
                           right: 30,
-                          child: Container(
-                            decoration: BoxDecoration(
-                                color: AppColors.bg,
-                                border:
-                                    Border.all(width: 0.8, color: AppColors.bg),
-                                borderRadius: BorderRadius.circular(50)),
-                            child: IconButton(
-                              color: AppColors.accentColor,
-                              icon: const Icon(Icons.favorite),
-                              onPressed: () {},
-                            ),
-                          ),
+                          child: Consumer<RestaurantDetailProvider>(
+                              builder: (context, stateDetail, _) {
+                            return Container(
+                                decoration: BoxDecoration(
+                                    color: AppColors.bg,
+                                    border: Border.all(
+                                        width: 0.8, color: AppColors.bg),
+                                    borderRadius: BorderRadius.circular(50)),
+                                child: Consumer<DatabaseProvider>(
+                                    builder: (context, provider, _) {
+                                  return FutureBuilder<bool>(
+                                      future:
+                                          provider.isFavorited(restaurantId),
+                                      builder: (context, snapshot) {
+                                        var isFavorited =
+                                            snapshot.data ?? false;
+                                        if (isFavorited) {
+                                          return IconButton(
+                                            color: AppColors.main,
+                                            icon: const Icon(Icons.favorite),
+                                            onPressed: () {
+                                              provider
+                                                  .removeFavorite(restaurantId);
+                                            },
+                                          );
+                                        } else {
+                                          return IconButton(
+                                            color: AppColors.main,
+                                            icon: const Icon(
+                                              Icons.favorite_outline,
+                                              color: AppColors.main,
+                                            ),
+                                            onPressed: () {
+                                              provider.addFavorite(stateDetail
+                                                  .result.restaurant);
+                                            },
+                                          );
+                                        }
+                                      });
+                                }));
+                          }),
                         )
                       ],
                     ),

@@ -7,6 +7,7 @@ import 'package:resto_app/service/api_service.dart';
 import 'package:resto_app/utils/Colors.dart';
 import 'package:flutter/services.dart';
 import 'package:resto_app/utils/constant.dart';
+import 'package:resto_app/utils/enum.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});

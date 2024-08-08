@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:resto_app/data/db/database_helper.dart';
+import 'package:resto_app/model/detail_restaurant.dart';
 import 'package:resto_app/model/restaurant.dart';
-
-enum ResultState { loading, noData, hasData, error }
+import 'package:resto_app/utils/enum.dart';
 
 class DatabaseProvider extends ChangeNotifier {
   final DatabaseHelper databaseHelper;
@@ -31,7 +31,14 @@ class DatabaseProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addFavorite(Restaurant restaurant) async {
+  void addFavorite(DetailRestaurant detailRestaurant) async {
+    final Restaurant restaurant = Restaurant(
+        id: detailRestaurant.id,
+        city: detailRestaurant.city,
+        description: detailRestaurant.description,
+        name: detailRestaurant.name,
+        pictureId: detailRestaurant.pictureId,
+        rating: detailRestaurant.rating);
     try {
       await databaseHelper.insertToFavorite(restaurant);
       _getFavorites();

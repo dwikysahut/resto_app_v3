@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:resto_app/components/list_item.dart';
 import 'package:resto_app/model/restaurant.dart';
 import 'package:resto_app/provider/bottom_navigation_provider.dart';
+import 'package:resto_app/provider/restaurant_favorite_provider.dart';
 import 'package:resto_app/provider/restaurant_provider.dart';
 import 'package:resto_app/service/api_service.dart';
 import 'package:resto_app/utils/Colors.dart';
 import 'package:flutter/services.dart';
 import 'package:resto_app/utils/constant.dart';
+import 'package:resto_app/utils/enum.dart';
+import 'package:resto_app/utils/notification_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +20,20 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final NotificationHelper _notificationHelper = NotificationHelper();
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationHelper.configureSelectNotificationSubject('/detail');
+  }
+
+  @override
+  void dispose() {
+    selectNotificationSubject.close();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -24,43 +41,63 @@ class _HomeScreenState extends State<HomeScreen> {
       statusBarIconBrightness: Brightness.light, // Icon color
     ));
 
-    Widget _buildList(BuildContext context) {
-      return Consumer<RestaurantProvider>(
-        builder: (context, state, _) {
-          if (state.state == ResultState.loading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (state.state == ResultState.hasData) {
-            return ListView.builder(
-              shrinkWrap: true,
-              itemCount: state.result.restaurants.length,
-              itemBuilder: (context, index) {
-                var item = state.result.restaurants[index];
-                return RestaurantItemWidget(
-                  restaurant: item,
+    Widget buildList(BuildContext context, bool isFavorite) {
+      return Consumer<RestaurantProvider>(builder: (context, state, _) {
+        return Consumer<DatabaseProvider>(
+          builder: (context, provider, child) {
+            if (state.state == ResultState.loading) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (state.state == ResultState.hasData) {
+              if (isFavorite) {
+                if (provider.favorites.isEmpty) {
+                  return const Center(
+                    child: Text('Daftar masih kosong'),
+                  );
+                }
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: provider.favorites.length,
+                  itemBuilder: (context, index) {
+                    var item = provider.favorites[index];
+                    return RestaurantItemWidget(
+                      restaurant: item,
+                    );
+                  },
                 );
-              },
-            );
-          } else if (state.state == ResultState.noData) {
-            return Center(
-              child: Material(
-                child: Text(state.message),
-              ),
-            );
-          } else if (state.state == ResultState.error) {
-            return Center(
-              child: Material(
-                child: Text(state.message),
-              ),
-            );
-          } else {
-            return const Center(
-              child: Material(
-                child: Text(''),
-              ),
-            );
-          }
-        },
-      );
+              } else {
+                return ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: state.result.restaurants.length,
+                  itemBuilder: (context, index) {
+                    var item = state.result.restaurants[index];
+                    return RestaurantItemWidget(
+                      restaurant: item,
+                    );
+                  },
+                );
+              }
+            } else if (state.state == ResultState.noData) {
+              return Center(
+                child: Material(
+                  child: Text(state.message),
+                ),
+              );
+            } else if (state.state == ResultState.error) {
+              return Center(
+                child: Material(
+                  child: Text(state.message),
+                ),
+              );
+            } else {
+              return const Center(
+                child: Material(
+                  child: Text(''),
+                ),
+              );
+            }
+          },
+        );
+      });
     }
 
     return ChangeNotifierProvider<BottomNavigationProvider>(
@@ -103,66 +140,16 @@ class _HomeScreenState extends State<HomeScreen> {
         }), body: Consumer<BottomNavigationProvider>(
           builder: (context, provider, _) {
             return [
-              HomeComponent(buildList: _buildList),
-              FavoriteComponent(buildList: _buildList),
+              HomeComponent(buildList: buildList),
+              FavoriteComponent(buildList: buildList),
             ][provider.selectedIndex];
           },
         )));
   }
-
-  Widget _buildRestaurantItem(BuildContext context, Restaurant restaurant) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 0,
-        vertical: 8.0,
-      ),
-      leading: Hero(
-        tag: restaurant.pictureId,
-        child: Image.network(
-          '${Constant.baseImageUrl}/${restaurant.pictureId}',
-          width: 100,
-        ),
-      ),
-      title: Text(restaurant.name),
-      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const SizedBox(
-          height: 3,
-        ),
-        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-          const Icon(
-            Icons.pin_drop,
-            color: Colors.grey,
-            size: 12.0,
-          ),
-          const SizedBox(width: 2),
-          Text(
-            restaurant.city,
-            style: const TextStyle(fontSize: 12),
-          ),
-        ]),
-        const SizedBox(height: 4),
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(
-            Icons.star,
-            color: AppColors.accentColor,
-            size: 11.0,
-          ),
-          const SizedBox(width: 2),
-          Text(
-            restaurant.rating.toString(),
-            style: const TextStyle(fontSize: 10),
-          ),
-        ])
-      ]),
-      onTap: () {
-        Navigator.pushNamed(context, '/detail', arguments: restaurant.id);
-      },
-    );
-  }
 }
 
 class HomeComponent extends StatelessWidget {
-  final Widget Function(BuildContext) buildList;
+  final Widget Function(BuildContext, bool) buildList;
   const HomeComponent({Key? key, required this.buildList}) : super(key: key);
 
   @override
@@ -180,6 +167,13 @@ class HomeComponent extends StatelessWidget {
                     Navigator.pushNamed(context, '/search');
                   },
                 ),
+                IconButton(
+                  icon: const Icon(Icons.settings),
+                  onPressed: () {
+                    // Your action here
+                    Navigator.pushNamed(context, '/setting');
+                  },
+                ),
               ],
               backgroundColor: AppColors.main,
             ),
@@ -194,7 +188,7 @@ class HomeComponent extends StatelessWidget {
                     subTitle: "Recommendation restaurant for you!",
                   ),
                   Expanded(
-                    child: buildList(context),
+                    child: buildList(context, false),
                   ),
                 ],
               ),
@@ -205,7 +199,7 @@ class HomeComponent extends StatelessWidget {
 }
 
 class FavoriteComponent extends StatelessWidget {
-  final Widget Function(BuildContext) buildList;
+  final Widget Function(BuildContext, bool) buildList;
   const FavoriteComponent({Key? key, required this.buildList})
       : super(key: key);
   @override
@@ -237,7 +231,7 @@ class FavoriteComponent extends StatelessWidget {
                     subTitle: "Here's your favorite",
                   ),
                   Expanded(
-                    child: buildList(context),
+                    child: buildList(context, true),
                   ),
                 ],
               ),

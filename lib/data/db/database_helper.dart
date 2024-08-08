@@ -32,7 +32,6 @@ class DatabaseHelper {
     if (_database == null) {
       _database = await _initializeDb();
     }
-
     return _database;
   }
 
